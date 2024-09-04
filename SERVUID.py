@@ -27,10 +27,10 @@ else:
 
 
 db_config ={
-    'host': 'localhost',
-    'user': 'taguser',
-    'password': 'FigaroFertMinas@8956',
-    'database': 'tag_car_control'
+    'host': 'host',
+    'user': 'user',
+    'password': 'password',
+    'database': 'db'
 }
 
 #....................................................................................................

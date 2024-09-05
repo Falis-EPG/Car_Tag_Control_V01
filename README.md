@@ -1,83 +1,173 @@
-# Car_Tag_Control_V01
-##Pré Requisitos##
+-
 
-Instalação das seguintes dependencias:
-  • !pip install tkinter
-  • !pip install pyserial
-  • !pip install pymysql
+# **Sistema de Leitura de Tags de Veículos**
 
-Instalação do banco de dados MySQL e criação das seguintes tabelas:
-| users
-  • user - VARCHAR
-  • phone - VARCHAR
-  • doc - VARCHAR
-  • type - VARCHAR
-  • email - VARCHAR
-  • tag - VARCHAR
-  • situation -VARCHAR
-  • plate - VARCHAR
-  
-| cars
-  • marca - VARCHAR
-  • model - VARCHAR
-  • year - VARCHAR
-  • plate - VARCHAR
-  • renavan - VARCHAR
-  • usability - VARCHAR
-  
-| registers
-  • name - VARCHAR
-  • time - VARCHAR
-  • date - VARCHAR
-  • plate - VARCHAR
-  • reason - VARCHAR
-  • id - VARCHAR - Auto_Increment
+## **Descrição Geral**
 
-A tabela user registrará todos os usuários, a cars todos os carros e a registers irá registrar todas as movimentações de coletas e devoluções para futuros relatórios.
+Este projeto é uma aplicação de controle de veículos e motoristas usando a biblioteca Tkinter para a interface gráfica, PyMySQL para a comunicação com o banco de dados MySQL, e `pySerial` para a leitura de dados de um dispositivo serial USB. A aplicação é voltada para a gestão de entrada e saída de veículos em uma empresa, com registro de informações de motoristas e veículos associados.
 
+### **Funcionalidades Principais:**
+- **Leitura de tags RFID** de motoristas ou veículos, utilizando um leitor serial USB.
+- **Registro de motoristas e veículos** no banco de dados.
+- **Consulta de veículos disponíveis** e gerenciamento de estado (em uso ou disponível).
+- **Registro de entrada e saída de veículos**, vinculando motoristas e veículos em cada operação.
 
-Este projeto tem como objetivo realizar o controle de uma frota de veiculos de uma empresa, podendo registrar tags NFE para cada usuário e vincula-los a coleta dos veículos.
+---
 
-###Funcionalidades###
+## **Requisitos**
+- **Python 3.x**
+- **Tkinter** (Interface gráfica)
+- **PyMySQL** (Integração com MySQL)
+- **pySerial** (Comunicação com porta serial)
+- **Banco de Dados MySQL**
 
-O projeto inicial se comunica com equipamentos em ARDUINO, sendo mais específico:
+---
 
-• Arduino UNO
-• LED
-• Buzzer
-• Leitor NFC RFID - RC522
+## **Estrutura do Código**
 
-(Para o leitor descrito acima, somente TAGS e CARTÕES nfc de frequencia proxima a 13,56mhz são funcionais.)
+### **1. Configuração da Porta Serial**
 
-O sistema feit em python, ao ser iniciado, chama a função:
+O código utiliza a biblioteca `serial.tools.list_ports` para detectar automaticamente um dispositivo serial com a descrição "USB-SERIAL CH340". Caso o dispositivo seja encontrado, a aplicação se conecta a ele para a leitura de tags RFID.
 
-  def __init__(self):
+```python
+def find_device():
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        if "USB-SERIAL CH340" in port.description:
+            return port.device
+    return None
+```
 
-que de inicio gera uma tela feita na biblioteca TKINTER do Python e também inicia a função:
+---
 
-  def read_tag():
+### **2. Interface Gráfica Principal**
+
+A classe `MainApplication` define a janela principal do sistema, onde o usuário pode acessar funcionalidades como registro de motoristas, veículos e leitura de tags.
+
+- **Título e Dimensões**: A janela é criada com título "Sistema de Leitura de Tags" e tem tamanho fixo de 800x600.
+- **Botões Laterais**: Contém botões que permitem o registro de novos veículos, motoristas e a opção de sair do sistema.
+- **Leitura de Tags**: A aplicação inicia uma thread separada para leitura contínua das tags por meio do dispositivo serial.
+
+```python
+class MainApplication(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        # Configurações da janela principal
+        # Botões para abrir as telas de registro
+        self.thread = threading.Thread(target=self.read_tag)
+        self.thread.daemon = True
+        self.thread.start()
+```
+
+#### **Leitura de Tags**
+
+Ao identificar a aproximação de uma tag, a aplicação consulta o banco de dados para verificar se a tag está associada a um motorista registrado. Caso sim, abre a janela de detalhes; se não, abre a tela de registro de motorista.
+
+```python
+def read_tag(self):
     while True:
+        if ser.in_waiting > 0:
+            tag_id = ser.readline().decode('utf-8').strip()
+            # Conecta ao banco de dados e realiza consulta
+```
 
-Ela iniciar a leitura continua nas entradas USB na qual o equipamento esta conectado. E sempre que alguma tag é aproxiamada ao equipamento, o arduino envia a porta USB o código da tag, o que é lido pela função acima e salva em uma variável - tag_id -.
+---
 
-Quando uma nova TAG é lida (uma tag sem cadastro no banco de dados) ele chama uma outra função:
+### **3. Janelas de Registro**
 
-  def open_driverReg(tag_id):
+#### **Registro de Motorista**
+A janela de registro de motorista permite inserir informações como nome, telefone, documento, tipo de habilitação, e-mail, e a tag RFID associada.
 
-Essa função inicia uma nova tela sobreposta a root, que oferece alguns campos a serem preenchidos, cadastrando asism um novo usuário ao sistema e o vinculando a TAG.
+```python
+def open_driverReg(self, tag_id):
+    # Interface gráfica para o registro de motoristas
+    def confirm_driver():
+        # Insere os dados do motorista no banco de dados
+```
 
-Caso a mesma tag (já registrada) seja lida novamente, o sistema vai identificar o seu registro e então chamará uma outa função:
+#### **Registro de Veículo**
+A janela de registro de veículos permite inserir dados do veículo, como marca, modelo, ano, placa e número do Renavam. Os veículos são marcados como "disponíveis" no momento do registro.
 
-  def open_tag_window(tag_id):
+```python
+def open_carReg(self):
+    # Interface gráfica para o registro de veículos
+    def confirm_car():
+        # Insere os dados do veículo no banco de dados
+```
 
-Ela abrirá uma outra tela sobreposta a root, que permitirá com que você registre a coleta de um novo veículo vinculado ao usuário da TAG.
-Grande parte dos campos nesta tela estarão preenchidos com os dados registrados do usuário.
+#### **Registro de Entrada e Saída de Veículos**
+Ao aproximar uma tag, caso o motorista esteja registrado, a janela de detalhes do veículo é exibida, onde o usuário pode confirmar as informações para registrar a entrada ou saída de um veículo.
 
-Mia a baixo, dois campos de tipo seleção em lista mostrarão os carros disponíveis para selecionar, estes que já estão salvos pela funcionalidade de registro deveículos. (será mostrado mais a baixo)
+```python
+def open_tag_window(self, tag_id):
+    # Interface gráfica para registrar movimentação de veículos
+    def confirm_tag():
+        # Insere ou atualiza o estado do motorista e do veículo no banco de dados
+```
 
-Após selecionar o veículo e clicar em confirmar, o sistema irá definir o carro como em uso e também definirá o usuário como em posse atualmente de um veículo.
+---
 
-O veículo ja selecionado, não será mostrado na lista de veiculos caso outro usuário queira realizar a retirada de um veículo.
+### **4. Conexão com o Banco de Dados**
 
-Quando o mesmo usuário apróximar a TAG no equipamento, o sistema abrirá a mesma tela e identificará que ele está realizando a devolução do veículo ja coletado anteriormente. E após o manipulador do sistema clicar em confirmar, o usuário é definico como sem veículo em posse e também é definido o carro em específico como disponível novamente.
+O sistema utiliza a biblioteca `PyMySQL` para se conectar ao banco de dados MySQL. A configuração da conexão é definida em um dicionário:
 
+```python
+db_config = {
+    'host': 'host',
+    'user': 'user',
+    'password': 'password',
+    'database': 'db'
+}
+```
+
+Para cada operação (registro, consulta, atualização), uma conexão é aberta e fechada após a execução das consultas SQL.
+
+---
+
+## **Como Executar o Projeto**
+
+1. **Instale as dependências**:
+   ```bash
+   pip install pyserial pymysql
+   ```
+
+2. **Configure o banco de dados**:
+   - Crie um banco de dados MySQL com as tabelas necessárias para armazenar informações de motoristas e veículos.
+
+3. **Execute a aplicação**:
+   ```bash
+   python main.py
+   ```
+
+---
+
+## **Tabelas do Banco de Dados**
+
+### **Tabela `users` (Motoristas)**
+
+| Campo     | Tipo        | Descrição                         |
+|-----------|-------------|-----------------------------------|
+| `user`    | VARCHAR(50) | Nome do motorista                 |
+| `phone`   | VARCHAR(20) | Telefone do motorista             |
+| `doc`     | VARCHAR(20) | Documento (RG ou CPF)             |
+| `type`    | VARCHAR(10) | Tipo de habilitação               |
+| `email`   | VARCHAR(50) | E-mail                            |
+| `tag`     | VARCHAR(50) | Código da tag RFID                |
+| `situation`| VARCHAR(10) | Situação (onDrive/devolucao)      |
+
+### **Tabela `cars` (Veículos)**
+
+| Campo       | Tipo        | Descrição                         |
+|-------------|-------------|-----------------------------------|
+| `marca`     | VARCHAR(50) | Marca do veículo                  |
+| `model`     | VARCHAR(50) | Modelo do veículo                 |
+| `year`      | INT         | Ano de fabricação                 |
+| `plate`     | VARCHAR(10) | Placa do veículo                  |
+| `renavan`   | VARCHAR(20) | Número do Renavam                 |
+| `usability` | VARCHAR(15) | Disponibilidade (disponivel/indisponivel) |
+
+---
+
+## **Considerações Finais**
+
+Este sistema foi desenvolvido para otimizar o controle de entrada e saída de veículos utilizando RFID e uma interface simples e eficiente.
